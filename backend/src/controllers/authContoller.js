@@ -52,11 +52,11 @@ export async function signup(req,res) {
     });
 
     res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true, // prevent XSS attacks,
-      sameSite: "strict", // prevent CSRF attacks
-      secure: process.env.NODE_ENV === "production",
-    });
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: "none",   // required for cross-domain (Vercel <-> Railway/Render)
+  secure: true,        // required when sameSite is "none" — must be HTTPS (both platforms give you this by default)
+});
 
     res.status(201).json({ success: true, user: newUser });
   } catch (error) {
@@ -85,11 +85,11 @@ export async function login(req,res) {
     });
 
     res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true, // prevent XSS attacks,
-      sameSite: "strict", // prevent CSRF attacks
-      secure: process.env.NODE_ENV === "production",
-    });
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: "none",   // required for cross-domain (Vercel <-> Railway/Render)
+  secure: true,        // required when sameSite is "none" — must be HTTPS (both platforms give you this by default)
+});
 
     res.status(200).json({ success: true, user });
   } catch (error) {
@@ -98,7 +98,7 @@ export async function login(req,res) {
   }
 }
 export async function logout(req,res) {
-    res.clearCookie("jwt");
+    res.clearCookie("jwt", { sameSite: "none", secure: true });
     res.status(200).json({ success: true, message: "Logout successful" });
 }
 
