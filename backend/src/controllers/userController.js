@@ -6,14 +6,41 @@ export async function getRecommendedUsers(req, res) {
     const currentUserId = req.user.id;
     const currentUser = req.user;
 
-    const recommendedUsers = await User.find({
-      $and: [
-        { _id: { $ne: currentUserId } }, //exclude current user
-        { _id: { $nin: currentUser.friends } }, // exclude current user's friends
-        { isOnboarded: true },
-      ],
-    }); 
-    res.status(200).json(recommendedUsers);
+    const { search = "", nativeLanguage = "", learningLanguage = "", page = 1, limit = 9 } = req.query;
+
+    const pageNum = Math.max(parseInt(page) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit) || 9, 1), 50);
+    const skip = (pageNum - 1) * limitNum;
+
+    const filters = [
+      { _id: { $ne: currentUserId } }, // exclude current user
+      { _id: { $nin: currentUser.friends } }, // exclude current user's friends
+      { isOnboarded: true },
+    ];
+
+    if (search.trim()) {
+      filters.push({ fullName: { $regex: search.trim(), $options: "i" } });
+    }
+    if (nativeLanguage.trim()) {
+      filters.push({ nativeLanguage: { $regex: `^${nativeLanguage.trim()}$`, $options: "i" } });
+    }
+    if (learningLanguage.trim()) {
+      filters.push({ learningLanguage: { $regex: `^${learningLanguage.trim()}$`, $options: "i" } });
+    }
+
+    const query = { $and: filters };
+
+    const [users, totalUsers] = await Promise.all([
+      User.find(query).skip(skip).limit(limitNum),
+      User.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      users,
+      totalUsers,
+      totalPages: Math.ceil(totalUsers / limitNum),
+      currentPage: pageNum,
+    });
   } catch (error) {
     console.error("Error in getRecommendedUsers controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -36,9 +63,8 @@ export async function getMyFriends(req, res) {
 export async function sendFriendRequest(req, res) {
   try {
     const myId = req.user.id;
-    const { id: recipientId } = req.params; 
+    const { id: recipientId } = req.params;
 
-    // prevent sending req to yourself
     if (myId === recipientId) {
       return res.status(400).json({ message: "You can't send friend request to yourself" });
     }
@@ -48,12 +74,10 @@ export async function sendFriendRequest(req, res) {
       return res.status(404).json({ message: "Recipient not found" });
     }
 
-    // check if user is already friends
     if (recipient.friends.includes(myId)) {
       return res.status(400).json({ message: "You are already friends with this user" });
     }
 
-    // check if a req already exists
     const existingRequest = await FriendRequest.findOne({
       $or: [
         { sender: myId, recipient: recipientId },
@@ -89,7 +113,6 @@ export async function acceptFriendRequest(req, res) {
       return res.status(404).json({ message: "Friend request not found" });
     }
 
-    // Verify the current user is the recipient
     if (friendRequest.recipient.toString() !== req.user.id) {
       return res.status(403).json({ message: "You are not authorized to accept this request" });
     }
@@ -97,8 +120,6 @@ export async function acceptFriendRequest(req, res) {
     friendRequest.status = "accepted";
     await friendRequest.save();
 
-    // add each user to the other's friends array
-    // $addToSet: adds elements to an array only if they do not already exist.
     await User.findByIdAndUpdate(friendRequest.sender, {
       $addToSet: { friends: friendRequest.recipient },
     });
@@ -143,6 +164,51 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getUserProfile(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in getUserProfile controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateProfile(req, res) {
+  try {
+    const userId = req.user._id;
+    const { fullName, bio, nativeLanguage, learningLanguage, location, gender, interests } = req.body;
+
+    if (!fullName) {
+      return res.status(400).json({ message: "Full name is required" });
+    }
+
+    const updateData = { fullName, bio, nativeLanguage, learningLanguage, location };
+
+    if (gender !== undefined) {
+      updateData.gender = gender;
+    }
+    if (interests !== undefined) {
+      updateData.interests = Array.isArray(interests) ? interests.slice(0, 8) : [];
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error("Error in updateProfile controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

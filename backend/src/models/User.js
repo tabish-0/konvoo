@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-
 const userSchema = new mongoose.Schema(
   {
     fullName: {
@@ -37,6 +36,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other", "prefer-not-to-say"],
+      default: "prefer-not-to-say",
+    },
+    interests: {
+      type: [String],
+      default: [],
+    },
     isOnboarded: {
       type: Boolean,
       default: false,
@@ -50,10 +58,8 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -62,12 +68,9 @@ userSchema.pre("save", async function (next) {
     next(error);
   }
 });
-
 userSchema.methods.matchPassword = async function (enteredPassword) {
   const isPasswordCorrect = await bcrypt.compare(enteredPassword, this.password);
   return isPasswordCorrect;
 };
-
 const User = mongoose.model("User", userSchema);
-
 export default User;

@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import SignUp from "./pages/SignUp";
@@ -8,6 +8,12 @@ import Notification from "./pages/Notification";
 import Call from "./pages/Call";
 import Chat from "./pages/Chat";
 import Onboarding from "./pages/Onboarding";
+import Friends from "./pages/FriendsPage";
+import ProfilePage from "./pages/ProfilePage";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import LandingPage from "./pages/LandingPage";
+import MessagesPage from "./pages/MessagesPage";
+import InstantConnectPage from "./pages/InstantConnectPage";
 import PageLoader from "./components/PageLoader";
 import useAuthUser from "./hooks/useAuthUser";
 import Layout from "./components/Layout.jsx";
@@ -30,8 +36,10 @@ const App = () => {
               <Layout showSidebar={true}>
                 <Home />
               </Layout>
+            ) : isAuthenticated && !isOnboarded ? (
+              <Navigate to="/onboarding" />
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              <LandingPage />
             )
           }
         />
@@ -46,6 +54,66 @@ const App = () => {
               <Login />
             ) : (
               <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <Friends />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/instant-connect"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <InstantConnectPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <MessagesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <ProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/profile/:id"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <PublicProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
             )
           }
         />
@@ -78,7 +146,7 @@ const App = () => {
               <Layout showSidebar={false}>
                 <Chat />
               </Layout>
-            ) : ( 
+            ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
             )
           }

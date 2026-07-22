@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -10,11 +10,13 @@ import {
   ShuffleIcon,
   CameraIcon,
 } from "lucide-react";
-import { LANGUAGES } from "../constants";
+import { LANGUAGES, GENDER_OPTIONS, INTEREST_TAGS } from "../constants";
+import { getFallbackAvatar } from "../lib/utils";
 
 const OnboardingPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
@@ -23,7 +25,45 @@ const OnboardingPage = () => {
     learningLanguage: authUser?.learningLanguage || "",
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
+    gender: authUser?.gender || "prefer-not-to-say",
+    interests: authUser?.interests || [],
   });
+
+  // Auto-detect location on mount and fill the Location field
+  useEffect(() => {
+    if (formState.location || !navigator.geolocation) return;
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          const city =
+            data?.address?.city ||
+            data?.address?.town ||
+            data?.address?.village ||
+            data?.address?.county ||
+            "";
+          const country = data?.address?.country || "";
+          const label = [city, country].filter(Boolean).join(", ");
+          if (label) {
+            setFormState((prev) => ({ ...prev, location: label }));
+            toast.success("Location detected!");
+          }
+        } catch (err) {
+          console.log("Reverse geocoding failed:", err.message);
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => setDetectingLocation(false),
+      { timeout: 8000 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { mutate: onboardingMutation, isPending } = useMutation({
     mutationFn: completeOnboarding,
@@ -42,10 +82,23 @@ const OnboardingPage = () => {
   };
 
   const handleRandomAvatar = () => {
-    const idx = Math.floor(Math.random() * 100) + 1;
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
-    setFormState({ ...formState, profilePic: randomAvatar });
+    const seed = formState.fullName || `user-${Date.now()}`;
+    setFormState({ ...formState, profilePic: getFallbackAvatar(seed) });
     toast.success("Random profile picture generated!");
+  };
+
+  const toggleInterest = (tag) => {
+    setFormState((prev) => {
+      const alreadySelected = prev.interests.includes(tag);
+      if (alreadySelected) {
+        return { ...prev, interests: prev.interests.filter((t) => t !== tag) };
+      }
+      if (prev.interests.length >= 8) {
+        toast.error("You can select up to 8 interests");
+        return prev;
+      }
+      return { ...prev, interests: [...prev.interests, tag] };
+    });
   };
 
   return (
@@ -66,6 +119,10 @@ const OnboardingPage = () => {
                 <img
                   src={formState.profilePic}
                   alt="Profile Preview"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = getFallbackAvatar(formState.fullName);
+                  }}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -101,6 +158,29 @@ const OnboardingPage = () => {
             />
           </div>
 
+          {/* GENDER */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Gender
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {GENDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFormState({ ...formState, gender: opt.value })}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium transition ${
+                    formState.gender === opt.value
+                      ? "border-indigo-500 bg-indigo-50 text-indigo-600"
+                      : "border-gray-300 text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* BIO */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -114,6 +194,32 @@ const OnboardingPage = () => {
               className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none transition h-24 resize-none"
               placeholder="Tell others about yourself and your goals"
             />
+          </div>
+
+          {/* INTERESTS */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Interests <span className="text-gray-400 font-normal">(pick up to 8)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {INTEREST_TAGS.map((tag) => {
+                const isSelected = formState.interests.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleInterest(tag)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+                      isSelected
+                        ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-transparent"
+                        : "border-gray-300 text-gray-600 hover:border-indigo-300"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* LANGUAGES */}
@@ -164,8 +270,13 @@ const OnboardingPage = () => {
 
           {/* LOCATION */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
               Location
+              {detectingLocation && (
+                <span className="text-xs text-indigo-500 flex items-center gap-1">
+                  <LoaderIcon className="w-3 h-3 animate-spin" /> Detecting...
+                </span>
+              )}
             </label>
             <div className="relative">
               <MapPinIcon className="absolute top-1/2 -translate-y-1/2 left-3 w-5 h-5 text-gray-400" />

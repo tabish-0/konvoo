@@ -9,7 +9,8 @@ const PORT = process.env.PORT
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL, // your Vercel URL, e.g. https://konvoo.vercel.app
+    origin: process.env.CLIENT_URL,
+    // origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -22,6 +23,8 @@ import userRoutes from './routes/userRoutes.js'
 app.use("/api/users", userRoutes)
 import chatRoutes from './routes/chatRoutes.js'
 app.use("/api/chat", chatRoutes)
+import queueRoutes from './routes/queueRoutes.js'
+app.use("/api/queue", queueRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

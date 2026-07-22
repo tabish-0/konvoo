@@ -14,7 +14,6 @@ export const LANGUAGES = [
   "Turkish",
   "Dutch",
 ];
-
 export const LANGUAGE_TO_FLAG = {
   english: "gb",
   spanish: "es",
@@ -31,3 +30,33 @@ export const LANGUAGE_TO_FLAG = {
   turkish: "tr",
   dutch: "nl",
 };
+
+export const GENDER_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+  { value: "prefer-not-to-say", label: "Prefer not to say" },
+];
+
+export const INTEREST_TAGS = [
+  "Music",
+  "Movies",
+  "Gaming",
+  "Travel",
+  "Books",
+  "Sports",
+  "Fitness",
+  "Cooking",
+  "Art",
+  "Technology",
+  "Photography",
+  "Fashion",
+  "Nature",
+  "Anime",
+  "Dancing",
+  "Writing",
+  "Business",
+  "Science",
+  "Spirituality",
+  "Comedy",
+];

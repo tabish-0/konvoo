@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+html, body, #root {
+  @apply bg-white dark:bg-gray-950 transition-colors duration-300;
+}
+
 .str-chat__channel {
   display: flex;
   align-items: center;
