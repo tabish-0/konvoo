@@ -157,18 +157,27 @@ export async function forgotPassword(req, res) {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(200).json({ message: "If that email exists, a reset link was sent" });
+
+    // Respond immediately regardless of whether the user exists
+    // (this is also correct security practice — don't reveal if an email is registered)
+    res.status(200).json({ message: "If that email exists, a reset link was sent" });
+
+    if (!user) return;
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     await user.save();
 
-    await sendResetPasswordEmail(user.email, resetToken);
-    res.status(200).json({ message: "If that email exists, a reset link was sent" });
+    // Fire-and-forget — don't block the response on this
+    sendResetPasswordEmail(user.email, resetToken).catch((err) => {
+      console.error("Background email send failed:", err.message);
+    });
   } catch (error) {
     console.error("Error in forgotPassword controller", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
   }
 }
 
