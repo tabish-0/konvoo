@@ -6,26 +6,69 @@ import AvatarCropperModal from "./AvatarCropperModal";
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const MAX_DIMENSION = 1400; // downscale huge mobile photos before they ever hit the cropper
 
 const AvatarUploader = ({ currentImage, name, onUploaded }) => {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
 
-  const handleFileChange = (e) => {
+  const downscaleImage = (dataUrl) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
+          resolve(dataUrl);
+          return;
+        }
+        const scale = MAX_DIMENSION / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      };
+      img.onerror = () => reject(new Error("Could not read image"));
+      img.src = dataUrl;
+    });
+
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+
+    if (file.type && !file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Image must be under 8MB");
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Image must be under 15MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setCropSrc(reader.result);
-    reader.readAsDataURL(file);
+
+    setPreparing(true);
+    try {
+      const rawDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+
+      const resized = await downscaleImage(rawDataUrl);
+      setCropSrc(resized);
+    } catch (err) {
+      console.log("Error preparing image:", err.message);
+      toast.error("Could not load that photo. Try a different one.");
+    } finally {
+      setPreparing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleCropConfirm = async (blob) => {
@@ -55,7 +98,6 @@ const AvatarUploader = ({ currentImage, name, onUploaded }) => {
       console.log("Cloudinary upload error:", err.message);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -74,7 +116,7 @@ const AvatarUploader = ({ currentImage, name, onUploaded }) => {
             <CameraIcon className="w-8 h-8 text-gray-400" />
           </div>
         )}
-        {uploading && (
+        {(uploading || preparing) && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <LoaderIcon className="w-6 h-6 text-white animate-spin" />
           </div>
@@ -84,11 +126,11 @@ const AvatarUploader = ({ currentImage, name, onUploaded }) => {
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
+        disabled={uploading || preparing}
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 text-white text-sm font-medium shadow hover:bg-indigo-600 transition disabled:opacity-50"
       >
         <CameraIcon className="w-4 h-4" />
-        {uploading ? "Uploading..." : "Upload Photo"}
+        {preparing ? "Loading photo..." : uploading ? "Uploading..." : "Upload Photo"}
       </button>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
 

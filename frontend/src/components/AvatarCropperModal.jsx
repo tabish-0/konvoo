@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { XIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import { XIcon, ZoomInIcon, ZoomOutIcon, LoaderIcon } from "lucide-react";
 
 const VIEWPORT_SIZE = 260;
 const OUTPUT_SIZE = 400;
@@ -10,9 +10,12 @@ const AvatarCropperModal = ({ imageSrc, onCancel, onConfirm }) => {
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [loadError, setLoadError] = useState(false);
   const dragState = useRef(null);
 
   useEffect(() => {
+    setLoadError(false);
+    setNaturalSize({ w: 0, h: 0 });
     const img = new Image();
     img.onload = () => {
       const minDim = Math.min(img.naturalWidth, img.naturalHeight);
@@ -22,6 +25,7 @@ const AvatarCropperModal = ({ imageSrc, onCancel, onConfirm }) => {
       setZoom(1);
       setPos({ x: 0, y: 0 });
     };
+    img.onerror = () => setLoadError(true);
     img.src = imageSrc;
   }, [imageSrc]);
 
@@ -75,14 +79,18 @@ const AvatarCropperModal = ({ imageSrc, onCancel, onConfirm }) => {
         </div>
 
         <div
-          className="relative mx-auto rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing select-none touch-none"
+          className="relative mx-auto rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing select-none touch-none flex items-center justify-center"
           style={{ width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
         >
-          {naturalSize.w > 0 && (
+          {loadError ? (
+            <p className="text-xs text-red-500 text-center px-4">Could not load this photo. Try another one.</p>
+          ) : naturalSize.w === 0 ? (
+            <LoaderIcon className="size-6 text-gray-400 animate-spin" />
+          ) : (
             <img
               src={imageSrc}
               draggable={false}
@@ -111,6 +119,7 @@ const AvatarCropperModal = ({ imageSrc, onCancel, onConfirm }) => {
             value={zoom}
             onChange={(e) => setZoom(parseFloat(e.target.value))}
             className="flex-1 accent-indigo-500"
+            disabled={naturalSize.w === 0}
           />
           <ZoomInIcon className="size-4 text-gray-400 flex-shrink-0" />
         </div>
@@ -124,7 +133,8 @@ const AvatarCropperModal = ({ imageSrc, onCancel, onConfirm }) => {
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition"
+            disabled={naturalSize.w === 0}
+            className="flex-1 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition disabled:opacity-50"
           >
             Save
           </button>

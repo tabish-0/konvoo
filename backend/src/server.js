@@ -16,6 +16,12 @@ app.use(
 app.use(express.json())
 app.use(cookieParser())
 
+// Ensure API responses are never cached by browsers or intermediate proxies (like the Vercel rewrite)
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
+
 import authRoutes from './routes/authRoutes.js'
 app.use("/api/auth", authRoutes)
 import userRoutes from './routes/userRoutes.js'
