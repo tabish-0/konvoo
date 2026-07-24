@@ -17,6 +17,7 @@
     "konvoo": "file:..",
     "mongoose": "^8.13.2",
     "nodemailer": "^9.0.3",
+    "resend": "^6.18.0",
     "stream-chat": "^8.60.0"
   },
   "devDependencies": {
