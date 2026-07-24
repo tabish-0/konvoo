@@ -8,11 +8,15 @@ html, body, #root {
 
 .str-chat__channel {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.6));
-  backdrop-filter: blur(12px);
+  flex-direction: column;
   height: 100%;
+}
+
+.str-chat__main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .str-chat__container {
@@ -28,6 +32,7 @@ html, body, #root {
 .str-chat__list {
   background-color: #ffffff;
   padding: 12px;
+  height: 100%;
 }
 .dark .str-chat__list {
   background-color: #111827;
@@ -39,8 +44,14 @@ html, body, #root {
 
 .str-chat__message-input {
   border-top: 1px solid #ddd;
+  flex-shrink: 0;
 }
 .dark .str-chat__message-input {
   border-top: 1px solid #374151;
   background-color: #111827;
+}
+
+.str-chat__header-livestream,
+.str-chat__channel-header {
+  flex-shrink: 0;
 }

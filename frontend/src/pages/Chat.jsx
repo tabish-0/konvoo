@@ -74,13 +74,18 @@ const ChatPage = () => {
   if (loading || !client || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col" onClick={handleAreaClick}>
+    <div
+      className="fixed inset-0 top-16 flex flex-col overflow-hidden"
+      onClick={handleAreaClick}
+    >
       <Channel channel={channel} Message={QuotedReplyMessage}>
-        <div className="flex-1 flex flex-col relative min-w-0">
+        <div className="flex-1 flex flex-col min-h-0 relative">
           <CallButton handleVideoCall={handleVideoCall} />
           <Window>
             <ChannelHeader />
-            <MessageList />
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <MessageList />
+            </div>
             <TypingIndicator />
             <MessageInput focus />
           </Window>
