@@ -1,4 +1,6 @@
-import * as SibApiV3Sdk from "@getbrevo/brevo";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const SibApiV3Sdk = require("@getbrevo/brevo");
 
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
