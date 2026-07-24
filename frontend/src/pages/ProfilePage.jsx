@@ -3,9 +3,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
 import { updateProfile } from "../lib/api";
 import { LANGUAGES, GENDER_OPTIONS, INTEREST_TAGS } from "../constants";
-import { handleAvatarError } from "../lib/utils";
+import { getCurrentCoords, reverseGeocode } from "../lib/location";
 import toast from "react-hot-toast";
 import { SaveIcon, MapPinIcon, LoaderIcon, LocateIcon } from "lucide-react";
+import AvatarUploader from "../components/AvatarUploader";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
@@ -20,6 +21,7 @@ const ProfilePage = () => {
     location: authUser?.location || "",
     gender: authUser?.gender || "prefer-not-to-say",
     interests: authUser?.interests || [],
+    profilePic: authUser?.profilePic || "",
   });
 
   const { mutate: saveMutation, isPending } = useMutation({
@@ -28,9 +30,7 @@ const ProfilePage = () => {
       toast.success("Profile updated!");
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to update profile");
-    },
+    onError: (err) => toast.error(err.response?.data?.message || "Failed to update profile"),
   });
 
   const handleSubmit = (e) => {
@@ -41,9 +41,7 @@ const ProfilePage = () => {
   const toggleInterest = (tag) => {
     setFormData((prev) => {
       const alreadySelected = prev.interests.includes(tag);
-      if (alreadySelected) {
-        return { ...prev, interests: prev.interests.filter((t) => t !== tag) };
-      }
+      if (alreadySelected) return { ...prev, interests: prev.interests.filter((t) => t !== tag) };
       if (prev.interests.length >= 8) {
         toast.error("You can select up to 8 interests");
         return prev;
@@ -52,46 +50,22 @@ const ProfilePage = () => {
     });
   };
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return;
-    }
+  const detectLocation = async () => {
     setDetectingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await res.json();
-          const city =
-            data?.address?.city ||
-            data?.address?.town ||
-            data?.address?.village ||
-            data?.address?.county ||
-            "";
-          const country = data?.address?.country || "";
-          const label = [city, country].filter(Boolean).join(", ");
-          if (label) {
-            setFormData((prev) => ({ ...prev, location: label }));
-            toast.success("Location updated!");
-          } else {
-            toast.error("Could not determine your city");
-          }
-        } catch (err) {
-          toast.error("Could not detect location");
-        } finally {
-          setDetectingLocation(false);
-        }
-      },
-      () => {
-        toast.error("Location permission denied");
-        setDetectingLocation(false);
-      },
-      { timeout: 8000 }
-    );
+    try {
+      const coords = await getCurrentCoords();
+      const place = await reverseGeocode(coords.lat, coords.lng);
+      if (place) {
+        setFormData((prev) => ({ ...prev, location: place }));
+        toast.success("Location updated!");
+      } else {
+        toast.error("Could not determine your city");
+      }
+    } catch (err) {
+      toast.error("Location permission denied");
+    } finally {
+      setDetectingLocation(false);
+    }
   };
 
   if (!authUser) return null;
@@ -103,28 +77,14 @@ const ProfilePage = () => {
           Your Profile
         </h1>
 
-        {/* Avatar + summary */}
-        <div className="flex items-center gap-5 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-          <img
-            src={authUser.profilePic}
-            alt={authUser.fullName}
-            onError={(e) => handleAvatarError(e, authUser.fullName)}
-            className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
+        <div className="p-6 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <AvatarUploader
+            currentImage={formData.profilePic}
+            name={formData.fullName}
+            onUploaded={(url) => setFormData({ ...formData, profilePic: url })}
           />
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{authUser.fullName}</h2>
-            {authUser.location && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
-                <MapPinIcon className="size-3" /> {authUser.location}
-              </p>
-            )}
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              Member since {new Date(authUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-            </p>
-          </div>
         </div>
 
-        {/* Edit form */}
         <form
           onSubmit={handleSubmit}
           className="space-y-5 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900"
@@ -140,7 +100,6 @@ const ProfilePage = () => {
             />
           </div>
 
-          {/* Gender */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -172,7 +131,6 @@ const ProfilePage = () => {
             />
           </div>
 
-          {/* Interests */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Interests <span className="text-gray-400 dark:text-gray-500 font-normal">(pick up to 8)</span>
@@ -242,13 +200,8 @@ const ProfilePage = () => {
                 onClick={detectLocation}
                 disabled={detectingLocation}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950 transition disabled:opacity-50 whitespace-nowrap"
-                title="Detect my current location"
               >
-                {detectingLocation ? (
-                  <LoaderIcon className="size-4 animate-spin" />
-                ) : (
-                  <LocateIcon className="size-4" />
-                )}
+                {detectingLocation ? <LoaderIcon className="size-4 animate-spin" /> : <LocateIcon className="size-4" />}
                 <span className="hidden sm:inline">Detect</span>
               </button>
             </div>

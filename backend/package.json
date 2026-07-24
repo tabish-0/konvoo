@@ -16,6 +16,7 @@
     "jsonwebtoken": "^9.0.2",
     "konvoo": "file:..",
     "mongoose": "^8.13.2",
+    "nodemailer": "^9.0.3",
     "stream-chat": "^8.60.0"
   },
   "devDependencies": {

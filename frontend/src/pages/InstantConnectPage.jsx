@@ -20,13 +20,14 @@ const POLL_INTERVAL_MS = 2500;
 const InstantConnectPage = () => {
   const navigate = useNavigate();
 
-  const [matchType, setMatchType] = useState("similar"); // "similar" | "dissimilar"
-  const [genderPref, setGenderPref] = useState("anyone"); // "anyone" | "male" | "female"
-  const [locationStatus, setLocationStatus] = useState("checking"); // "checking" | "granted" | "denied"
+  const [matchType, setMatchType] = useState("similar");
+  const [genderPref, setGenderPref] = useState("anyone");
+  const [locationStatus, setLocationStatus] = useState("checking");
   const [coords, setCoords] = useState(null);
+  const [useLocation, setUseLocation] = useState(true);
 
-  const [phase, setPhase] = useState("idle"); // "idle" | "searching" | "found" | "connected"
-  const [searchType, setSearchType] = useState(null); // "audio" | "video"
+  const [phase, setPhase] = useState("idle");
+  const [searchType, setSearchType] = useState(null);
   const [currentMatch, setCurrentMatch] = useState(null);
   const [roomId, setRoomId] = useState(null);
 
@@ -77,8 +78,10 @@ const InstantConnectPage = () => {
     }, POLL_INTERVAL_MS);
   };
 
+  const effectiveLocationMode = () => (useLocation && locationStatus === "granted" ? "nearby" : "global");
+
   const handleConnect = async (type) => {
-    if (locationStatus === "checking") return; // guard: never send incomplete coords
+    if (locationStatus === "checking") return;
     setSearchType(type);
     setPhase("searching");
 
@@ -87,8 +90,8 @@ const InstantConnectPage = () => {
         connectionType: type,
         matchType,
         genderPref,
-        locationMode: locationStatus === "granted" ? "nearby" : "global",
-        coords,
+        locationMode: effectiveLocationMode(),
+        coords: useLocation ? coords : null,
       });
 
       if (result.status === "matched") {
@@ -115,9 +118,7 @@ const InstantConnectPage = () => {
     }
   };
 
-  const acceptMatch = () => {
-    setPhase("connected");
-  };
+  const acceptMatch = () => setPhase("connected");
 
   const declineMatch = async () => {
     setCurrentMatch(null);
@@ -129,8 +130,8 @@ const InstantConnectPage = () => {
         connectionType: searchType,
         matchType,
         genderPref,
-        locationMode: locationStatus === "granted" ? "nearby" : "global",
-        coords,
+        locationMode: effectiveLocationMode(),
+        coords: useLocation ? coords : null,
       });
       if (result.status === "matched") {
         setCurrentMatch(result.match);
@@ -168,25 +169,18 @@ const InstantConnectPage = () => {
           </p>
         </div>
 
-        {/* SEARCHING STATE */}
         {phase === "searching" && (
           <div className="rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-12 text-center space-y-6">
             <div className="relative w-24 h-24 mx-auto">
               <div className="absolute inset-0 rounded-full bg-indigo-100 dark:bg-indigo-950 animate-ping" />
               <div className="relative w-24 h-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
-                {searchType === "video" ? (
-                  <VideoIcon className="size-9 text-white" />
-                ) : (
-                  <PhoneIcon className="size-9 text-white" />
-                )}
+                {searchType === "video" ? <VideoIcon className="size-9 text-white" /> : <PhoneIcon className="size-9 text-white" />}
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                Finding someone for you...
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Finding someone for you...</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {locationStatus === "granted" ? "Searching nearby" : "Searching globally"}
+                {effectiveLocationMode() === "nearby" ? "Searching nearby" : "Searching globally"}
               </p>
             </div>
             <button
@@ -198,35 +192,27 @@ const InstantConnectPage = () => {
           </div>
         )}
 
-        {/* MATCH FOUND STATE */}
         {phase === "found" && currentMatch && (
           <div className="rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center space-y-6">
             <span className="inline-block px-3 py-1 rounded-full bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-300 text-xs font-semibold">
               Match found!
             </span>
-
             <img
               src={currentMatch.profilePic}
               alt={currentMatch.fullName}
               onError={(e) => handleAvatarError(e, currentMatch.fullName)}
               className="w-24 h-24 rounded-full object-cover mx-auto border-2 border-indigo-200"
             />
-
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">{currentMatch.fullName}</h3>
-
             {currentMatch.interests?.length > 0 && (
               <div className="flex flex-wrap justify-center gap-2">
                 {currentMatch.interests.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 text-xs font-medium"
-                  >
+                  <span key={tag} className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 text-xs font-medium">
                     {tag}
                   </span>
                 ))}
               </div>
             )}
-
             <div className="flex items-center justify-center gap-3 pt-2">
               <button
                 onClick={declineMatch}
@@ -244,7 +230,6 @@ const InstantConnectPage = () => {
           </div>
         )}
 
-        {/* CONNECTED STATE — ready to join the real call */}
         {phase === "connected" && currentMatch && (
           <div className="rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gradient-to-br from-indigo-600 to-purple-700 p-8 text-center space-y-6 min-h-[400px] flex flex-col items-center justify-center">
             <img
@@ -275,36 +260,39 @@ const InstantConnectPage = () => {
           </div>
         )}
 
-        {/* IDLE STATE */}
         {phase === "idle" && (
           <>
-            <div
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
-                locationStatus === "checking"
-                  ? "bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400"
-                  : locationStatus === "granted"
-                  ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
-                  : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
-              }`}
-            >
-              {locationStatus === "checking" && (
-                <>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                {locationStatus === "checking" ? (
                   <LoaderIcon className="size-4 animate-spin" />
-                  Detecting your location...
-                </>
-              )}
-              {locationStatus === "granted" && (
-                <>
-                  <MapPinIcon className="size-4" />
-                  Location on — you'll be matched with people nearby
-                </>
-              )}
-              {locationStatus === "denied" && (
-                <>
-                  <GlobeIcon className="size-4" />
-                  Location off — you'll be matched with people globally
-                </>
-              )}
+                ) : effectiveLocationMode() === "nearby" ? (
+                  <MapPinIcon className="size-4 text-green-600" />
+                ) : (
+                  <GlobeIcon className="size-4 text-amber-600" />
+                )}
+                {locationStatus === "checking"
+                  ? "Detecting location..."
+                  : effectiveLocationMode() === "nearby"
+                  ? "Matching nearby"
+                  : "Matching globally"}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setUseLocation((v) => !v)}
+                disabled={locationStatus !== "granted"}
+                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  useLocation && locationStatus === "granted" ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"
+                }`}
+                title={locationStatus === "granted" ? "Toggle nearby matching" : "Location permission needed"}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    useLocation && locationStatus === "granted" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">

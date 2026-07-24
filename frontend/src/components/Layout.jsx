@@ -3,9 +3,11 @@ import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import BottomNav from "./BottomNav";
 import { useStreamChat } from "../context/StreamChatContext";
+import { useTheme } from "../context/ThemeContext";
 
 const Layout = ({ children, showSidebar = false }) => {
   const { client } = useStreamChat();
+  const { theme } = useTheme();
 
   const content = (
     <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors">
@@ -20,7 +22,13 @@ const Layout = ({ children, showSidebar = false }) => {
     </div>
   );
 
-  return client ? <Chat client={client}>{content}</Chat> : content;
+  return client ? (
+    <Chat client={client} theme={theme === "dark" ? "str-chat__theme-dark" : "str-chat__theme-light"}>
+      {content}
+    </Chat>
+  ) : (
+    content
+  );
 };
 
 export default Layout;

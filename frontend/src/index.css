@@ -18,7 +18,7 @@ html, body, #root {
 .str-chat__container {
   max-width: 1300px;
   width: 100%;
-  height: 92% !important;
+  height: 100% !important;
   margin: 0 auto !important;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -29,6 +29,9 @@ html, body, #root {
   background-color: #ffffff;
   padding: 12px;
 }
+.dark .str-chat__list {
+  background-color: #111827;
+}
 
 .str-chat__list-notifications {
   display: none;
@@ -36,4 +39,8 @@ html, body, #root {
 
 .str-chat__message-input {
   border-top: 1px solid #ddd;
+}
+.dark .str-chat__message-input {
+  border-top: 1px solid #374151;
+  background-color: #111827;
 }

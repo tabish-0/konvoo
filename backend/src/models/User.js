@@ -2,59 +2,24 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 const userSchema = new mongoose.Schema(
   {
-    fullName: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    password: {
-      type: String,
-      required: true,
-      minlength: 6,
-    },
-    bio: {
-      type: String,
-      default: "",
-    },
-    profilePic: {
-      type: String,
-      default: "",
-    },
-    nativeLanguage: {
-      type: String,
-      default: "",
-    },
-    learningLanguage: {
-      type: String,
-      default: "",
-    },
-    location: {
-      type: String,
-      default: "",
-    },
+    fullName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true, minlength: 6 },
+    bio: { type: String, default: "" },
+    profilePic: { type: String, default: "" },
+    nativeLanguage: { type: String, default: "" },
+    learningLanguage: { type: String, default: "" },
+    location: { type: String, default: "" },
     gender: {
       type: String,
       enum: ["male", "female", "other", "prefer-not-to-say"],
       default: "prefer-not-to-say",
     },
-    interests: {
-      type: [String],
-      default: [],
-    },
-    isOnboarded: {
-      type: Boolean,
-      default: false,
-    },
-    friends: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    interests: { type: [String], default: [] },
+    isOnboarded: { type: Boolean, default: false },
+    resetPasswordToken: { type: String, default: undefined },
+    resetPasswordExpires: { type: Date, default: undefined },
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );
@@ -69,8 +34,7 @@ userSchema.pre("save", async function (next) {
   }
 });
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  const isPasswordCorrect = await bcrypt.compare(enteredPassword, this.password);
-  return isPasswordCorrect;
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 const User = mongoose.model("User", userSchema);
 export default User;

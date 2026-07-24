@@ -1,6 +1,8 @@
 import User from '../models/User.js'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import { upsertStreamUser } from '../lib/stream.js';
+import { sendResetPasswordEmail } from '../lib/email.js';
 
 export async function signup(req,res) {
     const { email, password, fullName } = req.body;
@@ -25,8 +27,9 @@ export async function signup(req,res) {
       return res.status(400).json({ message: "Email already exists, please use a diffrent one" });
     }
 
-    const idx = Math.floor(Math.random() * 100) + 1; // generate a num between 1-100
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
+    const randomAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      fullName
+    )}&background=6366f1&color=fff&size=256&bold=true`;
 
     const newUser = await User.create({
       email,
@@ -52,11 +55,11 @@ export async function signup(req,res) {
     });
 
     res.cookie("jwt", token, {
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  httpOnly: true,
-  sameSite: "none",   // required for cross-domain (Vercel <-> Railway/Render)
-  secure: true,        // required when sameSite is "none" — must be HTTPS (both platforms give you this by default)
-});
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
 
     res.status(201).json({ success: true, user: newUser });
   } catch (error) {
@@ -85,11 +88,11 @@ export async function login(req,res) {
     });
 
     res.cookie("jwt", token, {
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  httpOnly: true,
-  sameSite: "none",   // required for cross-domain (Vercel <-> Railway/Render)
-  secure: true,        // required when sameSite is "none" — must be HTTPS (both platforms give you this by default)
-});
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
 
     res.status(200).json({ success: true, user });
   } catch (error) {
@@ -146,6 +149,51 @@ export async function onboard(req, res) {
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {
     console.error("Onboarding error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(200).json({ message: "If that email exists, a reset link was sent" });
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
+    await user.save();
+
+    await sendResetPasswordEmail(user.email, resetToken);
+    res.status(200).json({ message: "If that email exists, a reset link was sent" });
+  } catch (error) {
+    console.error("Error in forgotPassword controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+    if (!user) return res.status(400).json({ message: "Invalid or expired reset link" });
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Error in resetPassword controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
