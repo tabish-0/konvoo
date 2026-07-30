@@ -35,7 +35,7 @@ const LandingPage = () => {
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <ShipWheelIcon className="size-6 sm:size-8 text-indigo-600 flex-shrink-0" />
           <span className="text-base sm:text-2xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-500 truncate">
-            Streamify
+            Konvoo
           </span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
