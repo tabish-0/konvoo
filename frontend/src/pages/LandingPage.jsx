@@ -133,7 +133,7 @@ const LandingPage = () => {
       </section>
 
       <footer className="container mx-auto px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-600">
-        © {new Date().getFullYear()} Streamify. Built for language learners everywhere.
+        © {new Date().getFullYear()} Konvoo. Built for language learners everywhere.
       </footer>
     </div>
   );
